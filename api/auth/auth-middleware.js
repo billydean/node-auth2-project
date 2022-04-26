@@ -1,4 +1,5 @@
 const { JWT_SECRET } = require("../secrets"); // use this secret!
+const jwt = require('jsonwebtoken');
 
 const restricted = (req, res, next) => {
   /*
@@ -16,6 +17,8 @@ const restricted = (req, res, next) => {
 
     Put the decoded token in the req object, to make life easier for middlewares downstream!
   */
+ // if (!token) { next({status:401, message:'Token required'}) }
+ // if (no verify) { next({status:401, message:'Token invalid'})}
 }
 
 const only = role_name => (req, res, next) => {
@@ -62,6 +65,23 @@ const validateRoleName = (req, res, next) => {
       "message": "Role name can not be longer than 32 chars"
     }
   */
+   req.role_name = req.body.role_name.trim()
+   if (!req.body.role_name || req.role_name.trim() === '') {
+     req.role_name = 'student';
+     next();
+   } else if (req.role_name === 'admin') {
+     next({
+       status: 422,
+       message: 'Role name can not be admin'
+     })
+   } else if (req.role_name.length > 32) {
+     next({
+       status: 422,
+       message: 'Role name can not be longer than 32 chars'
+     });
+   } else {
+     next();
+   }
 }
 
 module.exports = {
