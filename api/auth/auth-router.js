@@ -1,7 +1,8 @@
 const router = require("express").Router();
 const { checkUsernameExists, validateRoleName } = require('./auth-middleware');
-const { JWT_SECRET } = require("../secrets"); // use this secret!
+const { jwtSecret } = require("../secrets"); // use this secret!
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken')
 const Users = require('../users/users-model');
 
 router.post("/register", validateRoleName, (req, res, next) => {
@@ -16,7 +17,8 @@ router.post("/register", validateRoleName, (req, res, next) => {
       "role_name": "angel"
     }
    */
-    const {password, username, role_name} = req.body;
+    const {password, username} = req.body;
+    const { role_name } = req;
     const hash = bcrypt.hashSync(password, 6);
     Users.add({username, role_name, password: hash})
       .then(registered => {
@@ -28,6 +30,33 @@ router.post("/register", validateRoleName, (req, res, next) => {
 
 
 router.post("/login", checkUsernameExists, (req, res, next) => {
+  //helper for generating jwt
+  console.log(req.user);
+  function makeToken(user) {
+    const payload = {
+      subject: user.user_id,
+      username: user.username,
+      role_name: user.role_name
+    }
+    const options = {
+      expiresIn: '1d',
+    }
+    return jwt.sign(payload, jwtSecret, options);
+  }
+  const {password} = req.body;
+  if (bcrypt.compareSync(password, req.user.password)) {
+    const token = makeToken(req.user);
+    res.status(200).json({
+      message: `${req.user.username} is back!`,
+      token
+    })
+  } else {
+    next({
+      status: 401,
+      message: "Invalid credentials"
+    })
+  }
+
   /**
     [POST] /api/auth/login { "username": "sue", "password": "1234" }
 
@@ -38,14 +67,7 @@ router.post("/login", checkUsernameExists, (req, res, next) => {
       "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ETC.ETC"
     }
 
-    The token must expire in one day, and must provide the following information
-    in its payload:
 
-    {
-      "subject"  : 1       // the user_id of the authenticated user
-      "username" : "bob"   // the username of the authenticated user
-      "role_name": "admin" // the role of the authenticated user
-    }
    */
 });
 
